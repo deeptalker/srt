@@ -1,36 +1,63 @@
-name: Android
-
+name: Android Build (OpenSSL + SRT)
 on:
   push:
-    branches: [ "master", "dev" ]
+    branches: [ master, dev ]
   pull_request:
-    branches: [ "master", "dev" ]
+    branches: [ master, dev ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup NDK
-      uses: nttld/setup-ndk@v1
-      id: setup-ndk
-      with:
-        ndk-version: r28c
-        add-to-path: false
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
 
-    # 执行你的编译脚本
-    - name: Build
-      run: |
-        cd ./scripts/build-android/
-        chmod +x ./build-android
-        source ./build-android -n ${{ steps.setup-ndk.outputs.ndk-path }}
+      # 官方 Android SDK + NDK r28c
+      - name: Setup Android NDK
+        uses: android-actions/setup-android@v3
+        with:
+          ndk-version: "28.0.12433566"
 
-    # ==========================================
-    # ✅ 下面这一步：GitHub 自动打包 + 自动生成下载
-    # ==========================================
-    - name: Upload build output
-      uses: actions/upload-artifact@v4
-      with:
-        name: android-openssl-srt-build  # 压缩包名字
-        path: output/                   # 你编译后输出的根目录（里面包含 libs + include）
+      # 执行编译脚本
+      - name: Run Build Script
+        run: |
+          export ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/28.0.12433566
+          cd scripts/build-android
+          chmod +x build-android
+          ./build-android -n $ANDROID_NDK_ROOT
+
+      # ===================== 排查文件位置（关键） =====================
+      - name: Find all .a files and headers
+        run: |
+          echo "======== 查找所有静态库 ========"
+          find /home/runner/work -name "*.a" | head -20
+          
+          echo "======== 查找所有 openssl 头文件 ========"
+          find /home/runner/work -name "*.h" | grep -E "(openssl|srt)" | head -20
+
+      # ===================== 自动复制文件到输出目录 =====================
+      - name: Prepare output
+        run: |
+          mkdir -p output/lib
+          mkdir -p output/include/openssl
+          mkdir -p output/include/srt
+
+          # 全局搜索复制（不管文件在哪，都能找到）
+          find /home/runner/work -name "libsrt.a" -o -name "libssl.a" -o -name "libcrypto.a" | xargs -I {} cp {} output/lib/ || true
+          find /home/runner/work -path "*/openssl/*.h" | xargs -I {} cp {} output/include/openssl/ || true
+          find /home/runner/work -path "*/srt/*.h" | xargs -I {} cp {} output/include/srt/ || true
+
+          ls -R output/
+
+      # ===================== 自动打包下载 =====================
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-openssl-srt
+          path: output/
