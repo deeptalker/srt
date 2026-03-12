@@ -1,62 +1,53 @@
-name: Android Build (OpenSSL + SRT)
+name: Android
 on:
   push:
     branches: [ master, dev ]
   pull_request:
     branches: [ master, dev ]
 
+# 定义 NDK 版本（只需改这里，全局生效）
+env:
+  NDK_VERSION: r28c
+
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          distribution: temurin
-
-      # 官方 Android SDK + NDK r28c
+      # =====================
+      # 完全按你的写法：用环境变量 + id + outputs
+      # 不写死路径 ✅
+      # =====================
       - name: Setup Android NDK
-        uses: android-actions/setup-android@v3
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
         with:
-          ndk-version: "28.0.12433566"
+          ndk-version: ${{ env.NDK_VERSION }}
+          add-to-path: true
 
-      # 执行编译脚本
-      - name: Run Build Script
+      # 执行脚本（自动传 NDK 路径）
+      - name: Build Project
         run: |
-          export ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/28.0.12433566
           cd scripts/build-android
           chmod +x build-android
-          ./build-android -n $ANDROID_NDK_ROOT
+          ./build-android -n ${{ steps.setup-ndk.outputs.ndk-path }} -a 24 -t "arm64-v8a"
 
-      # ===================== 排查文件位置（关键） =====================
-      - name: Find all .a files and headers
-        run: |
-          echo "======== 查找所有静态库 ========"
-          find /home/runner/work -name "*.a" | head -20
-          
-          echo "======== 查找所有 openssl 头文件 ========"
-          find /home/runner/work -name "*.h" | grep -E "(openssl|srt)" | head -20
-
-      # ===================== 自动复制文件到输出目录 =====================
-      - name: Prepare output
+      # 自动收集库和头文件
+      - name: Prepare Output
         run: |
           mkdir -p output/lib
           mkdir -p output/include/openssl
           mkdir -p output/include/srt
 
-          # 全局搜索复制（不管文件在哪，都能找到）
-          find /home/runner/work -name "libsrt.a" -o -name "libssl.a" -o -name "libcrypto.a" | xargs -I {} cp {} output/lib/ || true
-          find /home/runner/work -path "*/openssl/*.h" | xargs -I {} cp {} output/include/openssl/ || true
-          find /home/runner/work -path "*/srt/*.h" | xargs -I {} cp {} output/include/srt/ || true
+          find . -name "libsrt.a" -o -name "libssl.a" -o -name "libcrypto.a" | xargs cp -t output/lib/ || true
+          find . -path "*/openssl/*.h" | xargs cp -t output/include/openssl/ || true
+          find . -path "*/srt/*.h" | xargs cp -t output/include/srt/ || true
 
           ls -R output/
 
-      # ===================== 自动打包下载 =====================
-      - name: Upload artifact
+      # 自动打包 + 提供下载
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-openssl-srt
