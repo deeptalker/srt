@@ -17,9 +17,9 @@ echo_help()
 
 # Init optional command line vars
 NDK_ROOT=""
-API_LEVEL=28
-BUILD_TARGETS="armeabi-v7a arm64-v8a x86 x86_64"
-OPENSSL_VERSION=1.1.1l
+API_LEVEL=31
+BUILD_TARGETS="arm64-v8a x86_64"
+OPENSSL_VERSION=1.1.1w
 ENC_LIB=openssl
 MBEDTLS_VERSION=v2.26.0
 
