@@ -36,5 +36,5 @@ jobs:
         cd ./scripts/build-android/
         echo "NDK Path: ${{ steps.setup-ndk.outputs.ndk-path }}"
         # 修复脚本执行命令（补全 .sh 后缀）
-        chmod +x ./build-android.sh
-        source ./build-android.sh -n ${{ steps.setup-ndk.outputs.ndk-path }}
+        chmod +x ./build-android
+        source ./build-android -n ${{ steps.setup-ndk.outputs.ndk-path }}
