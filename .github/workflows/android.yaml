@@ -8,15 +8,15 @@ on:
 
 jobs:
   build:
-    name: NDK-R23
+    name: NDK-R28C
     runs-on: ubuntu-latest
 
     steps:
-    - name: Setup Android NDK R23
+    - name: Setup Android NDK R28C
       uses: nttld/setup-ndk@v1
       id: setup-ndk
       with:
-        ndk-version: r23
+        ndk-version: r28c
         add-to-path: false
     - uses: actions/checkout@v3
     - name: build
